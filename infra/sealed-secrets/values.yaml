@@ -3,7 +3,7 @@ sealed-secrets:
   resources:
     requests:
       cpu: 50m
-      memory: 64mi
+      memory: 64Mi
     limits:
       cpu: 200m
-      memory: 128mi
+      memory: 128Mi
