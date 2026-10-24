@@ -30,6 +30,10 @@ controller:
 
 server:
   replicas: 1
+  server:
+  service:
+    type: NodePort
+    nodePortHttps: 30443
   resources:
     requests:
       cpu: 100m
