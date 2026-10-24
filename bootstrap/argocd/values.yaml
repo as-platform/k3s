@@ -33,7 +33,7 @@ server:
   server:
   service:
     type: NodePort
-    nodePortHttps: 30443
+    nodePortHttps: 4000
   resources:
     requests:
       cpu: 100m
