@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: infra
+  namespace: argocd
+  annotations: 
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: "Project with infra for whole platform"
+  sourceRepos: 
+    - https://github.com/as-platform/k3s
+  destinations:
+    - server: https://kubernetes.default.svc
+    - namespace: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
