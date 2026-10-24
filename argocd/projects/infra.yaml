@@ -11,7 +11,7 @@ spec:
     - https://github.com/as-platform/k3s
   destinations:
     - server: https://kubernetes.default.svc
-    - namespace: '*'
+      namespace: '*'
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'
