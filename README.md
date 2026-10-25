@@ -1,3 +1,4 @@
 # k3s
 
 - ArgoCD: [http://192.168.1.80:31000](http://192.168.1.80:4000)
+- ZOT: https://zot.homelab
