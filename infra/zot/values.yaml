@@ -7,7 +7,7 @@ zot:
   mountConfig: true
   configFiles:
     config.json: |-
-      { 
+      {
         "storage": {
           "rootDirectory": "/var/lib/registry",
           "gc": true,
@@ -15,7 +15,42 @@ zot:
         },
         "http": {
           "address": "0.0.0.0",
-          "port": "5000"
+          "port": "5000",
+          "auth": {
+            "htpasswd": {
+              "path": "/secrets/htpasswd"
+            }
+          },
+          "accessControl": {
+            "repositories": {
+              "**": {
+                "policies": [
+                  {
+                    "users": [
+                      "admin"
+                    ],
+                    "actions": [
+                      "read",
+                      "create",
+                      "update"
+                    ]
+                  }
+                ],
+                "defaultPolicy": []
+              }
+            },
+            "adminPolicy": {
+              "users": [
+                "admin"
+              ],
+              "actions": [
+                "read",
+                "create",
+                "update",
+                "delete"
+              ]
+            }
+          }
         },
         "log": {
           "level": "info"
@@ -42,6 +77,9 @@ zot:
       - secretName: zot-tls
         hosts:
           - zot.homelab
+  externalSecrets:
+    - secretName: zot-htpasswd
+      mountPath: /secrets
   resources:
     requests:
       cpu: 100m
