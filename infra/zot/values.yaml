@@ -1,0 +1,51 @@
+zot:
+  persistence: true
+  pvc:
+    storage: 50Gi
+  service:
+    type: ClusterIP
+  mountConfig: true
+  configFiles:
+    config.json: |-
+      { 
+        "storage": {
+          "rootDirectory": "/var/lib/registry",
+          "gc": true,
+          "dedupe": true
+        },
+        "http": {
+          "address": "0.0.0.0",
+          "port": "5000"
+        },
+        "log": {
+          "level": "info"
+        },
+        "extensions": {
+          "search": {
+            "enable": true
+          },
+          "ui": {
+            "enable": true
+          }
+        }
+      }
+  ingress:
+    enabled: true
+    className: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: homelab-ca
+    hosts:
+      - host: zot.homelab
+        paths:
+          - path: /
+    tls:
+      - secretName: zot-tls
+        hosts:
+          - zot.homelab
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
