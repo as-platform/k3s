@@ -1,0 +1,48 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  name: github-runner
+  namespace: github-runner
+spec:
+  pollingInterval: 30
+  minReplicaCount: 0
+  maxReplicaCount: 2
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTargetRef:
+    backoffLimit: 0
+    activeDeadlineSeconds: 7200
+    template:
+      spec:
+        restartPolicy: Never
+        containers:
+          - name: runner
+            image: zot.homelab/golden/github-runner:stable
+            imagePullPolicy: Always
+            env:
+              - name: GITHUB_ORG
+                value: as-platform
+              - name: RUNNER_LABELS
+                value: homelab
+              - name: GITHUB_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: github-runner-token
+                    key: GITHUB_TOKEN
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                cpu: "2"
+                memory: 2Gi
+  triggers:
+    - type: github-runner
+      authenticationRef:
+        name: github-runner
+      metadata:
+        owner: "as-platform"
+        runnerScope: "org"
+        labels: "homelab"
+        targetWorkflowQueueLength: "1"
+        enableEtags: "true"

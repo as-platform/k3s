@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: github-runner-token
+  namespace: github-runner
+spec:
+  encryptedData:
+    GITHUB_TOKEN: AgBoElZQmRLU6gr/M0h2YBsRjPqiLOTK56g9ochyrstqlpR6kklCHM4TCOGylk/C+juwKUphcJhXX0/dEfisX8hFaKTb+wpKAzubcUddQj9Z9LIqDEKlxeuof+k7rngxV19Swn7L8TFH3nT1hkuM/BD1ibuUJ4QJk3PMC2v6j+R1+1+JAzER9acQpuLEnebld+CBBVE5yCYVk5zk5ARW3u5VdAgm7l/Ek64O1AaGHgYEvgqi103WKd8wh/prFhzl8Hzdgw4MpAELMgkZ+i9m6ErjcyEtIzfGFJPdgyIlkO94mVg17hPSUMKy7eg9/dDUNj2shgly6hgMYre03LP+PiiaguA41HF+ST/9iXytLMa91gtTTs0mSZVrKIDwegJhiv73nLbdn0Y1CVLie6BcUe35SvQAYI7En7qMZSMN7PeCMnU1MMk/JXQz93Nmdk1av9PyWV//yeRPLlIl/aQRnLTZ5smtVFTLrzC49pTVg1r7011hSAL+6/VWvQfycKUwvvG52Un3upeKM6g54bFtg3oN3911GH+SX4BcgoruhPQPBGL7o0tvVyQSmzHJ0n0BAw51KSIEtpSxwf4UqySTRXqhZKX3rhfXOrYfIZf9ojj6XbssLeSpUxU/jpzIvybsCTfV6P6WIpK5tqad4LvfumnPVkE7sfc5QPY6+wNYJQRBaW8ec34oekH+xKG1AhlmeLWpuJT3Wqyz6DX2g+aq/J4Yg0ydx7WtQG2UD7cs6EtXDDpMA0tPMW0C
+  template:
+    metadata:
+      name: github-runner-token
+      namespace: github-runner

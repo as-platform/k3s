@@ -1,0 +1,10 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: github-runner
+  namespace: github-runner
+spec:
+  secretTargetRef:
+    - parameter: personalAccessToken
+      name: github-runner-token
+      key: GITHUB_TOKEN
