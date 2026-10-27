@@ -15,6 +15,13 @@ spec:
     template:
       spec:
         restartPolicy: Never
+        hostAliases:
+          - ip: 192.168.1.50
+            hostnames: [zot.homelab]
+        volumes:
+          - name: homelab-ca
+            configMap:
+              name: homelab-ca
         containers:
           - name: runner
             image: zot.homelab/golden/github-runner:stable
@@ -24,11 +31,20 @@ spec:
                 value: as-platform
               - name: RUNNER_LABELS
                 value: homelab
+              - name: SSL_CERT_DIR
+                value: /etc/homelab-ca
               - name: GITHUB_TOKEN
                 valueFrom:
                   secretKeyRef:
                     name: github-runner-token
                     key: GITHUB_TOKEN
+            volumeMounts:
+              - name: homelab-ca
+                mountPath: /etc/containers/certs.d/zot.homelab
+                readOnly: true
+              - name: homelab-ca
+                mountPath: /etc/homelab-ca
+                readOnly: true
             resources:
               requests:
                 cpu: 250m

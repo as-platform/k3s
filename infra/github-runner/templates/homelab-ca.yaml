@@ -1,0 +1,17 @@
+apiVersion: v1
+data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIIBbzCCARSgAwIBAgIUM9XPZRGVup9KeAOo8EEXZ2SwJxcwCgYIKoZIzj0EAwIw
+    FTETMBEGA1UEAxMKaG9tZWxhYi1jYTAeFw0yNjEwMjUyMTI0NTFaFw0zNjEwMjIy
+    MTI0NTFaMBUxEzARBgNVBAMTCmhvbWVsYWItY2EwWTATBgcqhkjOPQIBBggqhkjO
+    PQMBBwNCAAQ7Kd2f+n1KncwbCuuVKKS1FJVAhU3foxDtmPog7TsAGVs23OPOuZ8N
+    pfhvwg3vwgEdKs8CFdpx7VXd0d2xit14o0IwQDAOBgNVHQ8BAf8EBAMCAqQwDwYD
+    VR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQU9dIdxu8IXI8st5X5e4vzzhK/bv4wCgYI
+    KoZIzj0EAwIDSQAwRgIhAIQKetiL6PSaiA6gggR6eLEBXFnWmpPL0y/aJ9FPZNX7
+    AiEAqd2oWCJuSzCQiJCGEHL3KuyWT+sQl0yAkVlk/ivSgok=
+    -----END CERTIFICATE-----
+kind: ConfigMap
+metadata:
+  name: homelab-ca
+  namespace: github-runner
