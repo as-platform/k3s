@@ -55,7 +55,6 @@ spec:
             securityContext:
               seccompProfile: {type: Unconfined}
               appArmorProfile: {type: Unconfined}
-              capabilities: {add: [SYS_ADMIN]}
   triggers:
     - type: github-runner
       authenticationRef:
