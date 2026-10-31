@@ -52,6 +52,9 @@ spec:
               limits:
                 cpu: "2"
                 memory: 2Gi
+            securityContext:
+              seccompProfile: {type: Unconfined}
+              appArmorProfile: {type: Unconfined}
   triggers:
     - type: github-runner
       authenticationRef:
