@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits"
+  ],
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "helmv3"
+      ],
+      "matchFileNames": [
+        "infra/argocd/**"
+      ],
+      "groupName": "argo cd"
+    }
+  ]
+}
