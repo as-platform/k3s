@@ -61,6 +61,10 @@ zot:
           },
           "ui": {
             "enable": true
+          },
+          "trust": {
+            "enable": true,
+            "cosign": true
           }
         }
       }
