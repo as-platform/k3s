@@ -37,6 +37,21 @@ kube-prometheus-stack:
       limits:
         cpu: "1"
         memory: 1Gi
+    admin:
+      existingSecret: grafana-admin
+      userKey: admin-user
+      passwordKey: admin-password
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      annotations:
+        cert-manager.io/cluster-issuer: homelab-ca
+      hosts:
+        - grafana.homelab
+      path: /
+      tls:
+        - secretName: grafana-tls
+          hosts: [grafana.homelab]
   prometheusOperator:
     resources:
       requests:
