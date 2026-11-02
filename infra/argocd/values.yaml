@@ -12,6 +12,9 @@ argo-cd:
         g, admin, role:admin
 
   repoServer:
+    metrics:
+      enabled: true
+      serviceMonitor.enabled: true
     replicas: 1
     resources:
       requests:
@@ -22,6 +25,9 @@ argo-cd:
         memory: 512Mi
 
   controller:
+    metrics:
+      enabled: true
+      serviceMonitor.enabled: true
     replicas: 1
     resources:
       requests:
@@ -32,6 +38,9 @@ argo-cd:
         memory: 1536Mi
 
   server:
+    metrics:
+      enabled: true
+      serviceMonitor.enabled: true
     ingress:
       enabled: true
       ingressClassName: traefik
@@ -51,6 +60,9 @@ argo-cd:
         memory: 512Mi
 
   applicationSet:
+    metrics:
+      enabled: true
+      serviceMonitor.enabled: true
     replicas: 1
     resources:
       requests:
