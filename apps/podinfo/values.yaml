@@ -5,3 +5,5 @@ containerPort: 9898
 ingress:
   enabled: true
   host: podinfo.homelab
+securityContext:
+  runAsUser: 100
