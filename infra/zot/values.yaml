@@ -11,7 +11,22 @@ zot:
         "storage": {
           "rootDirectory": "/var/lib/registry",
           "gc": true,
-          "dedupe": true
+          "dedupe": true,
+          "retention": {
+            "dryRun": true,
+            "policies": [
+              {
+                "repositories": ["cache/**"],
+                "keepTags": [
+                  {
+                    "patterns": [".*"],
+                    "pushedWithin": "336h",
+                    "pulledWithin": "336h"
+                  }
+                ]
+              }
+            ]
+          }
         },
         "http": {
           "address": "0.0.0.0",
