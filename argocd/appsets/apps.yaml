@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: apps
+  namespace: argocd
+  annotations: 
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/as-platform/k3s
+        revision: main
+        directories: 
+          - path: apps/*
+  template:
+    metadata:
+      name: "{{.path.basename}}"
+    spec:
+      project: apps
+      sources:
+        - repoURL: zot.homelab/charts
+          chart: app
+          targetRevision: 0.1.1
+          helm:
+            valueFiles:
+              - $values/apps/{{.path.basename}}/values.yaml
+        - repoURL: https://github.com/as-platform/k3s
+          targetRevision: main
+          ref: values
+      destination: 
+        server: https://kubernetes.default.svc
+        namespace: "{{.path.basename}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
