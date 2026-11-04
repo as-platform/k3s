@@ -1,38 +1,40 @@
 # k3s
 
-GitOps-репозиторий домашнего кластера K3s. Единственный источник правды для Argo CD: всё, что работает в кластере, описано здесь и применяется только через Argo CD.
+🇷🇺 [Русская версия](README_RUS.md)
 
-## Структура
+A GitOps repository for a home K3s cluster. The single source of truth for Argo CD: everything running in the cluster is described here and applied only through Argo CD.
+
+## Structure
 
 ```
 k3s/
-├── bootstrap/root-app.yaml   корневое Application (app-of-apps)
+├── bootstrap/root-app.yaml   root Application (app-of-apps)
 ├── argocd/
 │   ├── projects/             AppProject
 │   └── appsets/              ApplicationSet
-├── infra/<имя>/              компонент инфраструктуры (обёртка-чарт)
-├── apps/<app>/               values.yaml и catalog-info.yaml приложения
-├── catalog/                  all.yaml, groups.yaml для Backstage
-└── renovate.json             автообновление версий чартов
+├── infra/<name>/             an infrastructure component (wrapper chart)
+├── apps/<app>/               an application's values.yaml and catalog-info.yaml
+├── catalog/                  all.yaml, groups.yaml for Backstage
+└── renovate.json             automatic chart version updates
 ```
 
-## Как это работает
+## How it works
 
-1. `bootstrap/root-app.yaml` создаёт Application `root`, который смотрит в каталог `argocd/` (`directory.recurse: true`).
-2. `argocd/projects/infra.yaml` задаёт AppProject `infra` (sync-wave `-1`).
-3. `argocd/appsets/infra.yaml` — ApplicationSet с git-генератором по `infra/*` (sync-wave `1`): на каждый каталог создаётся Application с именем и namespace, равными имени каталога. Включены `automated` (prune + selfHeal), `CreateNamespace=true`, `ServerSideApply=true`.
-4. Argo CD управляет и самим собой: компонент `infra/argocd`.
+1. `bootstrap/root-app.yaml` creates the `root` Application, which watches the `argocd/` directory (`directory.recurse: true`).
+2. `argocd/projects/infra.yaml` defines the `infra` AppProject (sync-wave `-1`).
+3. `argocd/appsets/infra.yaml` is an ApplicationSet with a git generator over `infra/*` (sync-wave `1`): for each directory it creates an Application whose name and namespace equal the directory name. `automated` (prune + selfHeal), `CreateNamespace=true` and `ServerSideApply=true` are enabled.
+4. Argo CD manages itself too: the `infra/argocd` component.
 
-Новый компонент появляется в кластере после коммита каталога `infra/<имя>` в `main`. Репозиторий опрашивается раз в 3 минуты.
+A new component appears in the cluster after the `infra/<name>` directory is committed to `main`. The repository is polled every 3 minutes.
 
-## Компоненты `infra/`
+## `infra/` components
 
 
-| Каталог          | Upstream-чарт                                     | Версия  |
+| Directory        | Upstream chart                                    | Version |
 | ---------------- | ------------------------------------------------- | ------- |
 | `argocd`         | argo-cd                                           | 10.10.5 |
 | `cert-manager`   | cert-manager                                      | v1.21.3 |
-| `github-runner`  | собственные шаблоны (KEDA `ScaledJob`, CA, токен) | 0.1.0   |
+| `github-runner`  | own templates (KEDA `ScaledJob`, CA, token)       | 0.1.0   |
 | `keda`           | keda                                              | 2.21.0  |
 | `metallb`        | metallb                                           | 0.16.1  |
 | `monitoring`     | kube-prometheus-stack                             | 92.16.2 |
@@ -40,19 +42,19 @@ k3s/
 | `traefik`        | traefik                                           | 42.1.3  |
 | `zot`            | zot                                               | 0.1.128 |
 
-## Проверка изменений в `argocd/`
+## Checking changes in `argocd/`
 
-Перед пушем файлы из `argocd/` проверяются на сервере:
+Before pushing, files from `argocd/` are validated on the server:
 
 ```
-kubectl apply --dry-run=server -f <файл>
+kubectl apply --dry-run=server -f <file>
 ```
 
-Битый файл не ломает работающие приложения, но `root` перестаёт синкаться, пока не придёт исправление.
+A broken file does not break the running applications, but `root` stops syncing until a fix arrives.
 
-## Восстановление кластера с нуля
+## Restoring the cluster from scratch
 
-Нужно только при полной потере кластера. На ноде под root:
+Needed only after a complete loss of the cluster. On the node, as root:
 
 ```
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
@@ -63,17 +65,17 @@ helm install argocd infra/argocd -n argocd --create-namespace --wait --timeout 1
 kubectl apply -f bootstrap/root-app.yaml
 ```
 
-После этого Argo CD подхватывает сам себя через `infra/argocd` и разворачивает остальное. Дальше `helm upgrade` не использовать: все изменения идут через git.
+After that Argo CD picks itself up through `infra/argocd` and deploys everything else. Do not use `helm upgrade` afterwards: all changes go through git.
 
-## Секреты
+## Secrets
 
-Секреты хранятся в git только в зашифрованном виде (Sealed Secrets). Namespace контроллера — `sealed-secrets`, поэтому `kubeseal` нужно запускать так:
+Secrets are stored in git only in encrypted form (Sealed Secrets). The controller's namespace is `sealed-secrets`, so `kubeseal` must be run like this:
 
 ```
 kubeseal --controller-namespace sealed-secrets --controller-name sealed-secrets-controller
 ```
 
-## Правила
+## Rules
 
-- Деплой только через Argo CD, прямой `kubectl apply` на кластер не использовать.
-- Версии чартов обновляет Renovate (по понедельникам до 6:00); чарты Argo CD группируются в один PR.
+- Deploy only through Argo CD; do not use a direct `kubectl apply` on the cluster.
+- Chart versions are updated by Renovate (Mondays before 6:00); the Argo CD charts are grouped into a single PR.
