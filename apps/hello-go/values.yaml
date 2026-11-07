@@ -1,0 +1,8 @@
+image:
+  repository: zot.homelab/apps/hello-go
+  tag: "bootstrap"
+ingress:
+  enabled: true
+  host: hello-go.homelab
+autoscaling:
+  enabled: true
