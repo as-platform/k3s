@@ -33,7 +33,7 @@ spec:
               - name: RUNNER_LABELS
                 value: homelab
               - name: SSL_CERT_DIR
-                value: /etc/homelab-ca
+                value: /etc/homelab-ca:/etc/ssl/certs
               - name: GITHUB_TOKEN
                 valueFrom:
                   secretKeyRef:
