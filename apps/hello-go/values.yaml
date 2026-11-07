@@ -1,8 +1,0 @@
-image:
-  repository: zot.homelab/apps/hello-go
-  tag: "sha-495d985"
-ingress:
-  enabled: true
-  host: hello-go.homelab
-autoscaling:
-  enabled: true
