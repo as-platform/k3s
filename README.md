@@ -34,7 +34,7 @@ A new component appears in the cluster after the `infra/<name>` directory is com
 | ---------------- | ------------------------------------------------- | ------- |
 | `argocd`         | argo-cd                                           | 10.10.5 |
 | `cert-manager`   | cert-manager                                      | v1.21.3 |
-| `github-runner`  | own templates (KEDA `ScaledJob`, CA, token)       | 0.1.0   |
+| `github-runner`  | own templates (KEDA `ScaledJob`, NetworkPolicy, CA, token) | 0.1.0   |
 | `keda`           | keda                                              | 2.21.0  |
 | `metallb`        | metallb                                           | 0.16.1  |
 | `monitoring`     | kube-prometheus-stack                             | 92.16.2 |

@@ -34,7 +34,7 @@ k3s/
 | ---------------- | ------------------------------------------------- | ------- |
 | `argocd`         | argo-cd                                           | 10.10.5 |
 | `cert-manager`   | cert-manager                                      | v1.21.3 |
-| `github-runner`  | собственные шаблоны (KEDA `ScaledJob`, CA, токен) | 0.1.0   |
+| `github-runner`  | собственные шаблоны (KEDA `ScaledJob`, NetworkPolicy, CA, токен) | 0.1.0   |
 | `keda`           | keda                                              | 2.21.0  |
 | `metallb`        | metallb                                           | 0.16.1  |
 | `monitoring`     | kube-prometheus-stack                             | 92.16.2 |
