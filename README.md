@@ -33,6 +33,7 @@ A new component appears in the cluster after the `infra/<name>` directory is com
 | Directory        | Upstream chart                                    | Version |
 | ---------------- | ------------------------------------------------- | ------- |
 | `argocd`         | argo-cd                                           | 10.10.5 |
+| `backstage`      | own templates (Backstage, Postgres, Ingress, SealedSecret) | 0.1.0   |
 | `cert-manager`   | cert-manager                                      | v1.21.3 |
 | `github-runner`  | own templates (KEDA `ScaledJob`, NetworkPolicy, CA, token) | 0.1.0   |
 | `keda`           | keda                                              | 2.21.0  |

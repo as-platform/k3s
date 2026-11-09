@@ -33,6 +33,7 @@ k3s/
 | Каталог          | Upstream-чарт                                     | Версия  |
 | ---------------- | ------------------------------------------------- | ------- |
 | `argocd`         | argo-cd                                           | 10.10.5 |
+| `backstage`      | собственные шаблоны (Backstage, Postgres, Ingress, SealedSecret) | 0.1.0   |
 | `cert-manager`   | cert-manager                                      | v1.21.3 |
 | `github-runner`  | собственные шаблоны (KEDA `ScaledJob`, NetworkPolicy, CA, токен) | 0.1.0   |
 | `keda`           | keda                                              | 2.21.0  |
