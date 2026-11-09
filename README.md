@@ -78,5 +78,5 @@ kubeseal --controller-namespace sealed-secrets --controller-name sealed-secrets-
 ## Rules
 
 - Deploy only through Argo CD; do not use a direct `kubectl apply` on the cluster.
-- Zot reads `config.json` only at startup: after changing it, delete the pod (`kubectl -n zot delete pod zot-0`).
+- Zot reloads `config.json` without a restart (checked for `sync` and `retention`): about a minute after Argo CD syncs, a new `configuration settings` entry appears in the pod log.
 - Chart versions are updated by Renovate (Mondays before 6:00); the Argo CD charts are grouped into a single PR.
