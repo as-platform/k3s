@@ -12,7 +12,7 @@ kind: User
 metadata:
   name: alexeyshishin
   annotations:
-    github.com/user-id: "175206709"
+    github.com/user-id: "U_kgDOCnFxNQ"
 spec:
   memberOf:
     - platform
