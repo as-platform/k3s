@@ -23,6 +23,27 @@ spec:
         runAsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: wait-for-postgres
+          image: {{ .Values.postgres.image | quote }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres -p 5432 -U backstage; do sleep 2; done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
       containers:
         - name: backstage
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
