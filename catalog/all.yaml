@@ -1,0 +1,20 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: as-platform
+  description: Home development platform on K3s
+spec:
+  owner: group:default/platform
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: podinfo
+  description: Test application for the delivery chain
+  annotations:
+    backstage.io/kubernetes-id: podinfo
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/platform
+  system: as-platform
