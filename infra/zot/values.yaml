@@ -24,6 +24,14 @@ zot:
                     "pulledWithin": "336h"
                   }
                 ]
+              },
+              {
+                "repositories": ["mirror/**"],
+                "keepTags": [
+                  {
+                    "patterns": [".*"]
+                  }
+                ]
               }
             ]
           }
@@ -80,6 +88,25 @@ zot:
           "trust": {
             "enable": true,
             "cosign": true
+          },
+          "sync": {
+            "enable": true,
+            "registries": [
+              {
+                "urls": ["https://ghcr.io"],
+                "onDemand": true,
+                "tlsVerify": true,
+                "maxRetries": 1,
+                "retryDelay": "10s",
+                "content": [
+                  {
+                    "prefix": "aquasecurity/trivy-db",
+                    "tags": {"regex": "^2$"},
+                    "destination": "/mirror"
+                  }
+                ]
+              }
+            ]
           }
         }
       }
