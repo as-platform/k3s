@@ -1,0 +1,6 @@
+image:
+  repository: zot.homelab/apps/fsdg
+  tag: "bootstrap"
+ingress:
+  enabled: true
+  host: fsdg.homelab
