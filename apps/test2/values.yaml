@@ -1,0 +1,6 @@
+image:
+  repository: zot.homelab/apps/test2
+  tag: "bootstrap"
+ingress:
+  enabled: true
+  host: test2.homelab
