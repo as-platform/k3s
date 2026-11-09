@@ -1,6 +1,6 @@
 image:
   repository: zot.homelab/apps/backstage
-  tag: "sha-981cbb5"
+  tag: "sha-0326940"
 
 host: backstage.homelab
 clusterIssuer: homelab-ca
