@@ -23,6 +23,9 @@ spec:
           - name: homelab-ca
             configMap:
               name: homelab-ca
+          - name: buildah-storage
+            emptyDir:
+              sizeLimit: 20Gi
         containers:
           - name: runner
             image: zot.homelab/golden/github-runner:stable
@@ -34,6 +37,8 @@ spec:
                 value: homelab
               - name: SSL_CERT_DIR
                 value: /etc/homelab-ca:/etc/ssl/certs
+              - name: STORAGE_DRIVER
+                value: overlay
               - name: GITHUB_TOKEN
                 valueFrom:
                   secretKeyRef:
@@ -46,6 +51,8 @@ spec:
               - name: homelab-ca
                 mountPath: /etc/homelab-ca
                 readOnly: true
+              - name: buildah-storage
+                mountPath: /home/runner/.local/share/containers
             resources:
               requests:
                 cpu: 250m
