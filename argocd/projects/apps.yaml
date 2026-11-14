@@ -39,6 +39,10 @@ spec:
       namespace: '!postgres'
     - server: '*'
       namespace: '!kyverno'
+    - server: '*'
+      namespace: '!openbao'
+    - server: '*'
+      namespace: '!tailscale'
   clusterResourceWhitelist:
     - group: ''
       kind: Namespace
