@@ -43,6 +43,16 @@ spec:
       namespace: '!openbao'
     - server: '*'
       namespace: '!tailscale'
+    - server: '*'
+      namespace: '!storage'
+    - server: '*'
+      namespace: '!default'
+    - server: '*'
+      namespace: '!root'
+    - server: '*'
+      namespace: '!apps'
+    - server: '*'
+      namespace: '!infra'
   clusterResourceWhitelist:
     - group: ''
       kind: Namespace
