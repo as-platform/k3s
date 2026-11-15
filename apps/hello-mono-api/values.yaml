@@ -1,6 +1,0 @@
-image:
-  repository: zot.homelab/apps/hello-mono-api
-  tag: "sha-fd386e9"
-ingress:
-  enabled: true
-  host: hello-mono-api.homelab
