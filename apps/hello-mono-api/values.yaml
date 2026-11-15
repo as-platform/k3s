@@ -1,0 +1,6 @@
+image:
+  repository: zot.homelab/apps/hello-mono-api
+  tag: "bootstrap"
+ingress:
+  enabled: true
+  host: hello-mono-api.homelab
