@@ -1,0 +1,6 @@
+image:
+  repository: zot.homelab/apps/hello-web
+  tag: "bootstrap"
+ingress:
+  enabled: true
+  host: hello-web.homelab
