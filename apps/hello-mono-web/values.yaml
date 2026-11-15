@@ -1,6 +1,6 @@
 image:
   repository: zot.homelab/apps/hello-mono-web
-  tag: "sha-da6e257"
+  tag: "sha-e592637"
 ingress:
   enabled: true
   host: hello-mono-web.homelab
