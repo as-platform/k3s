@@ -1,0 +1,9 @@
+image:
+  repository: zot.homelab/apps/test-back-python
+  tag: "bootstrap"
+ingress:
+  enabled: true
+  host: test-back-python.homelab
+resources:
+  limits:
+    memory: 256Mi
