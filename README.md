@@ -2,20 +2,20 @@
 
 🇷🇺 [Русская версия](README_RUS.md)
 
-A GitOps repository for a home K3s cluster. The single source of truth for Argo CD: everything running in the cluster is described here and applied only through Argo CD.
+The GitOps repository of the [as-platform](https://github.com/as-platform) homelab cluster on K3s. The single source of truth for Argo CD: everything running in the cluster is described here and applied only through Argo CD.
 
 ## Structure
 
-```
-k3s/
-├── bootstrap/root-app.yaml   root Application (app-of-apps)
+```text
+.
+├── bootstrap/root-app.yaml   # root Application (app-of-apps)
 ├── argocd/
-│   ├── projects/             AppProject
-│   └── appsets/              ApplicationSet
-├── infra/<name>/             an infrastructure component (wrapper chart)
-├── apps/<app>/               an application's values.yaml and catalog-info.yaml
-├── catalog/                  all.yaml, groups.yaml for Backstage
-└── renovate.json             automatic chart version updates
+│   ├── projects/             # AppProject
+│   └── appsets/              # ApplicationSet
+├── infra/<name>/             # an infrastructure component (wrapper chart)
+├── apps/<app>/               # an application's values.yaml and catalog-info.yaml
+├── catalog/                  # all.yaml, groups.yaml for Backstage
+└── renovate.json             # automatic chart version updates
 ```
 
 ## How it works
@@ -29,25 +29,24 @@ A new component appears in the cluster after the `infra/<name>` directory is com
 
 ## `infra/` components
 
-
-| Directory        | Upstream chart                                    | Version |
-| ---------------- | ------------------------------------------------- | ------- |
-| `argocd`         | argo-cd                                           | 10.10.5 |
+| Directory        | Upstream chart                                             | Version |
+| ---------------- | ---------------------------------------------------------- | ------- |
+| `argocd`         | argo-cd                                                    | 10.10.5 |
 | `backstage`      | own templates (Backstage, Postgres, Ingress, SealedSecret) | 0.1.0   |
-| `cert-manager`   | cert-manager                                      | v1.21.3 |
+| `cert-manager`   | cert-manager                                               | v1.21.3 |
 | `github-runner`  | own templates (KEDA `ScaledJob`, NetworkPolicy, CA, token) | 0.1.0   |
-| `keda`           | keda                                              | 2.21.0  |
-| `metallb`        | metallb                                           | 0.16.1  |
-| `monitoring`     | kube-prometheus-stack                             | 92.16.2 |
-| `sealed-secrets` | sealed-secrets                                    | 2.20.0  |
-| `traefik`        | traefik                                           | 42.1.3  |
-| `zot`            | zot                                               | 0.1.128 |
+| `keda`           | keda                                                       | 2.21.0  |
+| `metallb`        | metallb                                                    | 0.16.1  |
+| `monitoring`     | kube-prometheus-stack                                      | 92.16.2 |
+| `sealed-secrets` | sealed-secrets                                             | 2.20.0  |
+| `traefik`        | traefik                                                    | 42.1.3  |
+| `zot`            | zot                                                        | 0.1.128 |
 
 ## Checking changes in `argocd/`
 
 Before pushing, files from `argocd/` are validated on the server:
 
-```
+```bash
 kubectl apply --dry-run=server -f <file>
 ```
 
@@ -57,7 +56,7 @@ A broken file does not break the running applications, but `root` stops syncing 
 
 Needed only after a complete loss of the cluster. On the node, as root:
 
-```
+```bash
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 git clone https://github.com/as-platform/k3s.git && cd k3s
 helm repo add argo https://argoproj.github.io/argo-helm && helm repo update
@@ -72,7 +71,7 @@ After that Argo CD picks itself up through `infra/argocd` and deploys everything
 
 Secrets are stored in git only in encrypted form (Sealed Secrets). The controller's namespace is `sealed-secrets`, so `kubeseal` must be run like this:
 
-```
+```bash
 kubeseal --controller-namespace sealed-secrets --controller-name sealed-secrets-controller
 ```
 
@@ -81,3 +80,14 @@ kubeseal --controller-namespace sealed-secrets --controller-name sealed-secrets-
 - Deploy only through Argo CD; do not use a direct `kubectl apply` on the cluster.
 - Zot reloads `config.json` without a restart (checked for `sync` and `retention`): about a minute after Argo CD syncs, a new `configuration settings` entry appears in the pod log.
 - Chart versions are updated by Renovate (Mondays before 6:00); the Argo CD charts are grouped into a single PR.
+
+## Related repositories
+
+- [`homelab-infra`](https://github.com/as-platform/homelab-infra) — the Ansible code that creates the K3s cluster this repository manages
+- [`ci-templates`](https://github.com/as-platform/ci-templates) — the reusable workflows whose `deploy-bump` commits image tags to `apps/`
+- [`backstage-templates`](https://github.com/as-platform/backstage-templates) — the templates that open a pull request adding `apps/<name>/`
+- [`backstage`](https://github.com/as-platform/backstage) — the portal that reads `catalog/`
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).

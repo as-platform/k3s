@@ -2,20 +2,20 @@
 
 🇬🇧 [English version](README.md)
 
-GitOps-репозиторий домашнего кластера K3s. Единственный источник правды для Argo CD: всё, что работает в кластере, описано здесь и применяется только через Argo CD.
+GitOps-репозиторий домашнего кластера K3s платформы [as-platform](https://github.com/as-platform). Единственный источник правды для Argo CD: всё, что работает в кластере, описано здесь и применяется только через Argo CD.
 
 ## Структура
 
-```
-k3s/
-├── bootstrap/root-app.yaml   корневое Application (app-of-apps)
+```text
+.
+├── bootstrap/root-app.yaml   # корневое Application (app-of-apps)
 ├── argocd/
-│   ├── projects/             AppProject
-│   └── appsets/              ApplicationSet
-├── infra/<имя>/              компонент инфраструктуры (обёртка-чарт)
-├── apps/<app>/               values.yaml и catalog-info.yaml приложения
-├── catalog/                  all.yaml, groups.yaml для Backstage
-└── renovate.json             автообновление версий чартов
+│   ├── projects/             # AppProject
+│   └── appsets/              # ApplicationSet
+├── infra/<имя>/              # компонент инфраструктуры (обёртка-чарт)
+├── apps/<app>/               # values.yaml и catalog-info.yaml приложения
+├── catalog/                  # all.yaml, groups.yaml для Backstage
+└── renovate.json             # автообновление версий чартов
 ```
 
 ## Как это работает
@@ -29,25 +29,24 @@ k3s/
 
 ## Компоненты `infra/`
 
-
-| Каталог          | Upstream-чарт                                     | Версия  |
-| ---------------- | ------------------------------------------------- | ------- |
-| `argocd`         | argo-cd                                           | 10.10.5 |
+| Каталог          | Upstream-чарт                                                    | Версия  |
+| ---------------- | ---------------------------------------------------------------- | ------- |
+| `argocd`         | argo-cd                                                          | 10.10.5 |
 | `backstage`      | собственные шаблоны (Backstage, Postgres, Ingress, SealedSecret) | 0.1.0   |
-| `cert-manager`   | cert-manager                                      | v1.21.3 |
+| `cert-manager`   | cert-manager                                                     | v1.21.3 |
 | `github-runner`  | собственные шаблоны (KEDA `ScaledJob`, NetworkPolicy, CA, токен) | 0.1.0   |
-| `keda`           | keda                                              | 2.21.0  |
-| `metallb`        | metallb                                           | 0.16.1  |
-| `monitoring`     | kube-prometheus-stack                             | 92.16.2 |
-| `sealed-secrets` | sealed-secrets                                    | 2.20.0  |
-| `traefik`        | traefik                                           | 42.1.3  |
-| `zot`            | zot                                               | 0.1.128 |
+| `keda`           | keda                                                             | 2.21.0  |
+| `metallb`        | metallb                                                          | 0.16.1  |
+| `monitoring`     | kube-prometheus-stack                                            | 92.16.2 |
+| `sealed-secrets` | sealed-secrets                                                   | 2.20.0  |
+| `traefik`        | traefik                                                          | 42.1.3  |
+| `zot`            | zot                                                              | 0.1.128 |
 
 ## Проверка изменений в `argocd/`
 
 Перед пушем файлы из `argocd/` проверяются на сервере:
 
-```
+```bash
 kubectl apply --dry-run=server -f <файл>
 ```
 
@@ -57,7 +56,7 @@ kubectl apply --dry-run=server -f <файл>
 
 Нужно только при полной потере кластера. На ноде под root:
 
-```
+```bash
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 git clone https://github.com/as-platform/k3s.git && cd k3s
 helm repo add argo https://argoproj.github.io/argo-helm && helm repo update
@@ -72,11 +71,23 @@ kubectl apply -f bootstrap/root-app.yaml
 
 Секреты хранятся в git только в зашифрованном виде (Sealed Secrets). Namespace контроллера — `sealed-secrets`, поэтому `kubeseal` нужно запускать так:
 
-```
+```bash
 kubeseal --controller-namespace sealed-secrets --controller-name sealed-secrets-controller
 ```
 
 ## Правила
 
 - Деплой только через Argo CD, прямой `kubectl apply` на кластер не использовать.
+- Zot перечитывает `config.json` без перезапуска (проверено для `sync` и `retention`): примерно через минуту после синка Argo CD в логе пода появляется новая запись `configuration settings`.
 - Версии чартов обновляет Renovate (по понедельникам до 6:00); чарты Argo CD группируются в один PR.
+
+## Связанные репозитории
+
+- [`homelab-infra`](https://github.com/as-platform/homelab-infra) — Ansible-код, который создаёт кластер K3s, управляемый этим репозиторием
+- [`ci-templates`](https://github.com/as-platform/ci-templates) — переиспользуемые workflow, чей `deploy-bump` коммитит теги образов в `apps/`
+- [`backstage-templates`](https://github.com/as-platform/backstage-templates) — шаблоны, которые открывают PR с `apps/<имя>/`
+- [`backstage`](https://github.com/as-platform/backstage) — портал, который читает `catalog/`
+
+## Лицензия
+
+MIT — см. [`LICENSE`](LICENSE).
