@@ -4,12 +4,22 @@ openbao:
   csi:
     enabled: false
   ui:
-    enabled: false
+    enabled: true
   server:
     updateStrategyType: RollingUpdate
     configAnnotation: true
     ingress:
-      enabled: false
+      enabled: true
+      ingressClassName: traefik
+      activeService: false
+      annotations:
+        cert-manager.io/cluster-issuer: homelab-ca
+      hosts:
+        - host: openbao.homelab
+      tls:
+        - secretName: openbao-tls
+          hosts:
+            - openbao.homelab
     resources:
       requests:
         cpu: 50m
@@ -40,7 +50,7 @@ openbao:
     standalone:
       enabled: true
       config: |-
-        ui = false
+        ui = true
 
         listener "tcp" {
           tls_disable = 1
