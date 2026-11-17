@@ -18,8 +18,6 @@ spec:
     - server: '*'
       namespace: '!argocd'
     - server: '*'
-      namespace: '!sealed-secrets'
-    - server: '*'
       namespace: '!metallb'
     - server: '*'
       namespace: '!traefik'
