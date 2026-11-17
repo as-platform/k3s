@@ -29,18 +29,19 @@ GitOps-репозиторий домашнего кластера K3s платф
 
 ## Компоненты `infra/`
 
-| Каталог          | Upstream-чарт                                                    | Версия  |
-| ---------------- | ---------------------------------------------------------------- | ------- |
-| `argocd`         | argo-cd                                                          | 10.10.5 |
-| `backstage`      | собственные шаблоны (Backstage, Postgres, Ingress, SealedSecret) | 0.1.0   |
-| `cert-manager`   | cert-manager                                                     | v1.21.3 |
-| `github-runner`  | собственные шаблоны (KEDA `ScaledJob`, NetworkPolicy, CA, токен) | 0.1.0   |
-| `keda`           | keda                                                             | 2.21.0  |
-| `metallb`        | metallb                                                          | 0.16.1  |
-| `monitoring`     | kube-prometheus-stack                                            | 92.16.2 |
-| `sealed-secrets` | sealed-secrets                                                   | 2.20.0  |
-| `traefik`        | traefik                                                          | 42.1.3  |
-| `zot`            | zot                                                              | 0.1.128 |
+| Каталог            | Upstream-чарт                                                      | Версия  |
+| ------------------ | ------------------------------------------------------------------ | ------- |
+| `argocd`           | argo-cd                                                            | 10.10.5 |
+| `backstage`        | собственные шаблоны (Backstage, Postgres, Ingress, ExternalSecret) | 0.1.0   |
+| `cert-manager`     | cert-manager                                                       | v1.21.3 |
+| `external-secrets` | external-secrets                                                   | 2.14.0  |
+| `github-runner`    | собственные шаблоны (KEDA `ScaledJob`, NetworkPolicy, CA, токен)   | 0.1.0   |
+| `keda`             | keda                                                               | 2.21.0  |
+| `metallb`          | metallb                                                            | 0.16.1  |
+| `monitoring`       | kube-prometheus-stack                                              | 92.16.2 |
+| `openbao`          | openbao                                                            | 0.30.7  |
+| `traefik`          | traefik                                                            | 42.1.3  |
+| `zot`              | zot                                                                | 0.1.128 |
 
 ## Проверка изменений в `argocd/`
 
@@ -69,15 +70,81 @@ kubectl apply -f bootstrap/root-app.yaml
 
 ## Секреты
 
-Секреты хранятся в git только в зашифрованном виде (Sealed Secrets). Namespace контроллера — `sealed-secrets`, поэтому `kubeseal` нужно запускать так:
+Значения лежат в OpenBao KV v2 по пути `secret/<namespace>/<name>`. В git хранится только ExternalSecret:
 
-```bash
-kubeseal --controller-namespace sealed-secrets --controller-name sealed-secrets-controller
+```yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: <name>
+  namespace: <ns>
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: openbao
+  target:
+    name: <name>
+    creationPolicy: Owner
+    deletionPolicy: Retain
+  dataFrom:
+    - extract:
+        key: <ns>/<name>
 ```
+
+ClusterSecretStore `openbao` обслуживает только namespace из `spec.conditions` в `infra/external-secrets/templates/cluster-secret-store.yaml` (сейчас: `argocd`, `backstage`, `github-runner`, `monitoring`, `zot`).
+
+OpenBao работает в режиме standalone, хранилище raft на PVC local-path. Seal статический: 32-байтный ключ из Secret `openbao-bootstrap` в namespace `openbao`, создаётся вручную и никогда не управляется Argo CD. UI и Ingress нет, доступ по HTTP внутри кластера. Self-init (блоки `initialize` в `infra/openbao/values.yaml`) создаёт kv-v2 `secret/`, пользователя userpass `admin`, kubernetes auth, а также политику и роль `external-secrets` (только чтение `secret/data/*`, привязка к ServiceAccount `external-secrets` в namespace `external-secrets`).
+
+### Работа с OpenBao
+
+1. Доступ:
+
+   ```bash
+   kubectl -n openbao port-forward svc/openbao 8200:8200
+   export BAO_ADDR=http://127.0.0.1:8200
+   bao login -method=userpass username=admin
+   ```
+
+   Пароль — ключ `admin-password` Secret `openbao-bootstrap`.
+
+2. Добавить секрет: `bao kv put secret/<ns>/<name> key=value`, добавить ExternalSecret в чарт компонента, а новый namespace — в `conditions`.
+3. Ротация значения:
+
+   ```bash
+   bao kv patch secret/<ns>/<name> key=new
+   kubectl -n <ns> annotate externalsecret <name> force-sync=$(date +%s) --overwrite
+   ```
+
+   Для `zot-htpasswd` ещё `kubectl -n zot delete pod zot-0`: Zot не перечитывает htpasswd. Для потребителей в `argocd` и `backstage` перезапустить под, если он читает значение при старте.
+4. Политики и роли правятся через `bao policy write` и `bao write auth/kubernetes/role/...`. Блок `initialize` выполняется один раз на свежем хранилище и остаётся в git только для восстановления с нуля.
+5. Snapshot:
+
+   ```bash
+   bao operator raft snapshot save openbao-$(date +%F).snap
+   ```
+
+   Хранить рядом с бэкапом Secret `openbao-bootstrap`. Делать после каждого изменения KV или политик и перед обновлением чарта. Snapshot без статического ключа бесполезен, ключ без snapshot тоже.
+6. Ротация статического ключа: смонтировать оба ключа, в блоке `seal "static"` задать `current_key_id` и `current_key` новым, а `previous_key_id` и `previous_key` старым, перекатить под, позже убрать предыдущий ключ.
+
+### Восстановление OpenBao с нуля
+
+1. До `root-app` создать namespace `openbao` и применить Secret из сохранённого `openbao-bootstrap.yaml`, убрав `uid`, `resourceVersion` и `creationTimestamp`.
+2. Когда `openbao` Healthy: `bao login`, затем `bao operator raft snapshot restore -force <файл>`, затем снова `bao login` (токены меняются), удалить под `openbao-0`, принудительно синкнуть все ExternalSecret.
+3. Завершить и пересинкнуть зависшие Application.
+
+Namespace `openbao` не удалять: статический ключ уйдёт вместе с ним, хранилище останется запечатанным навсегда.
+
+### Конфликт владения
+
+Если ESO сообщает о конфликте владения существующим Secret, выполнить `kubectl -n <ns> delete <kind> <name> --cascade=orphan` на старом владельце, затем force-sync. В крайнем случае удалить Secret и дать ESO пересоздать его (uid сменится).
 
 ## Правила
 
 - Деплой только через Argo CD, прямой `kubectl apply` на кластер не использовать.
+- Исключения из предыдущего правила: Secret `openbao-bootstrap`, `kubectl delete <kind> <name> --cascade=orphan` при разовой миграции с прежнего инструмента секретов и стирание PVC OpenBao, пока KV пуст.
 - Zot перечитывает `config.json` без перезапуска (проверено для `sync` и `retention`): примерно через минуту после синка Argo CD в логе пода появляется новая запись `configuration settings`.
 - Версии чартов обновляет Renovate (по понедельникам до 6:00); чарты Argo CD группируются в один PR.
 

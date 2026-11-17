@@ -29,18 +29,19 @@ A new component appears in the cluster after the `infra/<name>` directory is com
 
 ## `infra/` components
 
-| Directory        | Upstream chart                                             | Version |
-| ---------------- | ---------------------------------------------------------- | ------- |
-| `argocd`         | argo-cd                                                    | 10.10.5 |
-| `backstage`      | own templates (Backstage, Postgres, Ingress, SealedSecret) | 0.1.0   |
-| `cert-manager`   | cert-manager                                               | v1.21.3 |
-| `github-runner`  | own templates (KEDA `ScaledJob`, NetworkPolicy, CA, token) | 0.1.0   |
-| `keda`           | keda                                                       | 2.21.0  |
-| `metallb`        | metallb                                                    | 0.16.1  |
-| `monitoring`     | kube-prometheus-stack                                      | 92.16.2 |
-| `sealed-secrets` | sealed-secrets                                             | 2.20.0  |
-| `traefik`        | traefik                                                    | 42.1.3  |
-| `zot`            | zot                                                        | 0.1.128 |
+| Directory          | Upstream chart                                               | Version |
+| ------------------ | ------------------------------------------------------------ | ------- |
+| `argocd`           | argo-cd                                                      | 10.10.5 |
+| `backstage`        | own templates (Backstage, Postgres, Ingress, ExternalSecret) | 0.1.0   |
+| `cert-manager`     | cert-manager                                                 | v1.21.3 |
+| `external-secrets` | external-secrets                                             | 2.14.0  |
+| `github-runner`    | own templates (KEDA `ScaledJob`, NetworkPolicy, CA, token)   | 0.1.0   |
+| `keda`             | keda                                                         | 2.21.0  |
+| `metallb`          | metallb                                                      | 0.16.1  |
+| `monitoring`       | kube-prometheus-stack                                        | 92.16.2 |
+| `openbao`          | openbao                                                      | 0.30.7  |
+| `traefik`          | traefik                                                      | 42.1.3  |
+| `zot`              | zot                                                          | 0.1.128 |
 
 ## Checking changes in `argocd/`
 
@@ -69,15 +70,81 @@ After that Argo CD picks itself up through `infra/argocd` and deploys everything
 
 ## Secrets
 
-Secrets are stored in git only in encrypted form (Sealed Secrets). The controller's namespace is `sealed-secrets`, so `kubeseal` must be run like this:
+Values live in OpenBao KV v2 at `secret/<namespace>/<name>`. Git holds only an ExternalSecret:
 
-```bash
-kubeseal --controller-namespace sealed-secrets --controller-name sealed-secrets-controller
+```yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: <name>
+  namespace: <ns>
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: openbao
+  target:
+    name: <name>
+    creationPolicy: Owner
+    deletionPolicy: Retain
+  dataFrom:
+    - extract:
+        key: <ns>/<name>
 ```
+
+The ClusterSecretStore `openbao` serves only the namespaces listed in `spec.conditions` of `infra/external-secrets/templates/cluster-secret-store.yaml` (now: `argocd`, `backstage`, `github-runner`, `monitoring`, `zot`).
+
+OpenBao runs standalone with raft storage on a local-path PVC. The seal is static: a 32-byte key from the Secret `openbao-bootstrap` in the `openbao` namespace, created by hand and never managed by Argo CD. There is no UI and no Ingress, access is HTTP inside the cluster. Self-init (`initialize` blocks in `infra/openbao/values.yaml`) creates the kv-v2 mount `secret/`, the userpass user `admin`, kubernetes auth, and the policy and role `external-secrets` (read-only on `secret/data/*`, bound to the ServiceAccount `external-secrets` in the `external-secrets` namespace).
+
+### Working with OpenBao
+
+1. Access:
+
+   ```bash
+   kubectl -n openbao port-forward svc/openbao 8200:8200
+   export BAO_ADDR=http://127.0.0.1:8200
+   bao login -method=userpass username=admin
+   ```
+
+   The password is the key `admin-password` of the Secret `openbao-bootstrap`.
+
+2. Add a secret: `bao kv put secret/<ns>/<name> key=value`, add an ExternalSecret to the component chart, and add the namespace to `conditions` if it is new.
+3. Rotate a value:
+
+   ```bash
+   bao kv patch secret/<ns>/<name> key=new
+   kubectl -n <ns> annotate externalsecret <name> force-sync=$(date +%s) --overwrite
+   ```
+
+   For `zot-htpasswd` also run `kubectl -n zot delete pod zot-0`: Zot does not reread htpasswd. Restart the consumer pod in `argocd` and `backstage` if it reads the value at start.
+4. Edit policies and roles with `bao policy write` and `bao write auth/kubernetes/role/...`. The `initialize` block runs once on a fresh storage and stays in git only for restoring from scratch.
+5. Snapshot:
+
+   ```bash
+   bao operator raft snapshot save openbao-$(date +%F).snap
+   ```
+
+   Keep it next to the backup of the `openbao-bootstrap` Secret. Take one after every KV or policy change and before a chart upgrade. A snapshot without the static key is useless, and the key without a snapshot too.
+6. Static key rotation: mount both keys, set `current_key_id` and `current_key` to the new one and `previous_key_id` and `previous_key` to the old one in the `seal "static"` block, roll the pod, drop the previous key later.
+
+### Restoring OpenBao from scratch
+
+1. Before `root-app`, create the `openbao` namespace and apply the Secret from the saved `openbao-bootstrap.yaml` after removing `uid`, `resourceVersion` and `creationTimestamp`.
+2. When `openbao` is Healthy: `bao login`, then `bao operator raft snapshot restore -force <file>`, then `bao login` again (tokens change), delete the pod `openbao-0`, force-sync every ExternalSecret.
+3. Terminate and resync the stuck Applications.
+
+Never delete the `openbao` namespace: the static key goes with it and the storage can never be opened again.
+
+### Ownership conflict
+
+If ESO reports an ownership conflict on an existing Secret, run `kubectl -n <ns> delete <kind> <name> --cascade=orphan` on the old owner, then force-sync. As a last resort delete the Secret and let ESO recreate it (the uid changes).
 
 ## Rules
 
 - Deploy only through Argo CD; do not use a direct `kubectl apply` on the cluster.
+- Exceptions to the previous rule: the `openbao-bootstrap` Secret, `kubectl delete <kind> <name> --cascade=orphan` during the one-time migration from the previous secret tooling, and wiping the OpenBao PVC while the KV is still empty.
 - Zot reloads `config.json` without a restart (checked for `sync` and `retention`): about a minute after Argo CD syncs, a new `configuration settings` entry appears in the pod log.
 - Chart versions are updated by Renovate (Mondays before 6:00); the Argo CD charts are grouped into a single PR.
 
