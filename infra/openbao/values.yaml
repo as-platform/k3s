@@ -1,0 +1,141 @@
+openbao:
+  injector:
+    enabled: false
+  csi:
+    enabled: false
+  ui:
+    enabled: false
+  server:
+    updateStrategyType: RollingUpdate
+    configAnnotation: true
+    ingress:
+      enabled: false
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+    dataStorage:
+      enabled: true
+      size: 1Gi
+      storageClass: local-path
+    extraSecretEnvironmentVars:
+      - envName: INITIAL_ADMIN_PASSWORD
+        secretName: openbao-bootstrap
+        secretKey: admin-password
+    volumes:
+      - name: static-seal
+        secret:
+          secretName: openbao-bootstrap
+          defaultMode: 0440
+          items:
+            - key: unseal-key
+              path: unseal.key
+    volumeMounts:
+      - name: static-seal
+        mountPath: /openbao/static-seal
+        readOnly: true
+    standalone:
+      enabled: true
+      config: |-
+        ui = false
+
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+
+        storage "raft" {
+          path = "/openbao/data"
+        }
+
+        seal "static" {
+          current_key_id = "homelab-1"
+          current_key    = "file:///openbao/static-seal/unseal.key"
+        }
+
+        initialize "policy-admin" {
+          request "create-admin-policy" {
+            operation = "update"
+            path      = "sys/policies/acl/admin"
+            data = {
+              policy = "path \"*\" {\n  capabilities = [\"create\", \"read\", \"update\", \"patch\", \"delete\", \"list\", \"sudo\"]\n}\n"
+            }
+          }
+        }
+
+        initialize "auth-userpass" {
+          request "enable-userpass" {
+            operation = "update"
+            path      = "sys/auth/userpass"
+            data = {
+              type = "userpass"
+            }
+          }
+          request "create-admin-user" {
+            operation = "update"
+            path      = "auth/userpass/users/admin"
+            data = {
+              password = {
+                eval_type       = "string"
+                eval_source     = "env"
+                env_var         = "INITIAL_ADMIN_PASSWORD"
+                require_present = true
+              }
+              token_policies = ["admin"]
+            }
+          }
+        }
+
+        initialize "secrets-kv" {
+          request "mount-kv" {
+            operation = "update"
+            path      = "sys/mounts/secret"
+            data = {
+              type = "kv"
+              options = {
+                version = "2"
+              }
+            }
+          }
+        }
+
+        initialize "auth-kubernetes" {
+          request "enable-kubernetes" {
+            operation = "update"
+            path      = "sys/auth/kubernetes"
+            data = {
+              type = "kubernetes"
+            }
+          }
+          request "configure-kubernetes" {
+            operation = "update"
+            path      = "auth/kubernetes/config"
+            data = {
+              kubernetes_host = "https://kubernetes.default.svc"
+            }
+          }
+        }
+
+        initialize "external-secrets-access" {
+          request "create-external-secrets-policy" {
+            operation = "update"
+            path      = "sys/policies/acl/external-secrets"
+            data = {
+              policy = "path \"secret/data/*\" {\n  capabilities = [\"read\"]\n}\n"
+            }
+          }
+          request "create-external-secrets-role" {
+            operation = "update"
+            path      = "auth/kubernetes/role/external-secrets"
+            data = {
+              bound_service_account_names      = ["external-secrets"]
+              bound_service_account_namespaces = ["external-secrets"]
+              token_policies                   = ["external-secrets"]
+              token_ttl                        = "1h"
+            }
+          }
+        }
