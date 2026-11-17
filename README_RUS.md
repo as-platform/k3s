@@ -63,8 +63,12 @@ git clone https://github.com/as-platform/k3s.git && cd k3s
 helm repo add argo https://argoproj.github.io/argo-helm && helm repo update
 helm dependency build infra/argocd
 helm install argocd infra/argocd -n argocd --create-namespace --wait --timeout 10m
+kubectl create namespace openbao
+kubectl apply -f openbao-bootstrap.yaml
 kubectl apply -f bootstrap/root-app.yaml
 ```
+
+`openbao-bootstrap.yaml` — сохранённый Secret `openbao-bootstrap`, подготовленный как в «Восстановление OpenBao с нуля»; он должен существовать до `root-app`. Snapshot OpenBao восстановить после того, как `openbao` станет Healthy, как описано в том же подразделе.
 
 После этого Argo CD подхватывает сам себя через `infra/argocd` и разворачивает остальное. Дальше `helm upgrade` не использовать: все изменения идут через git.
 
@@ -96,7 +100,7 @@ spec:
 
 ClusterSecretStore `openbao` обслуживает только namespace из `spec.conditions` в `infra/external-secrets/templates/cluster-secret-store.yaml` (сейчас: `argocd`, `backstage`, `github-runner`, `monitoring`, `zot`).
 
-OpenBao работает в режиме standalone, хранилище raft на PVC local-path. Seal статический: 32-байтный ключ из Secret `openbao-bootstrap` в namespace `openbao`, создаётся вручную и никогда не управляется Argo CD. UI и Ingress нет, доступ по HTTP внутри кластера. Self-init (блоки `initialize` в `infra/openbao/values.yaml`) создаёт kv-v2 `secret/`, пользователя userpass `admin`, kubernetes auth, а также политику и роль `external-secrets` (только чтение `secret/data/*`, привязка к ServiceAccount `external-secrets` в namespace `external-secrets`).
+OpenBao работает в режиме standalone, хранилище raft на PVC local-path. Seal статический: 32-байтный ключ из Secret `openbao-bootstrap` в namespace `openbao`, создаётся вручную и никогда не управляется Argo CD. UI доступен по `https://openbao.homelab` через Traefik с сертификатом от `homelab-ca`; на хосте нужна строка `192.168.1.50 openbao.homelab` в `/etc/hosts`, как для остальных `*.homelab`. Метод входа в UI — `Username`, пользователь `admin`, пароль — ключ `admin-password` Secret `openbao-bootstrap`. Внутри кластера ESO по-прежнему ходит по обычному HTTP `http://openbao.openbao.svc:8200`. Self-init (блоки `initialize` в `infra/openbao/values.yaml`) создаёт kv-v2 `secret/`, пользователя userpass `admin`, kubernetes auth, а также политику и роль `external-secrets` (только чтение `secret/data/*`, привязка к ServiceAccount `external-secrets` в namespace `external-secrets`).
 
 ### Работа с OpenBao
 
@@ -108,7 +112,7 @@ OpenBao работает в режиме standalone, хранилище raft н�
    bao login -method=userpass username=admin
    ```
 
-   Пароль — ключ `admin-password` Secret `openbao-bootstrap`.
+   Пароль — ключ `admin-password` Secret `openbao-bootstrap`. Альтернатива CLI — UI по `https://openbao.homelab` (см. «Секреты»).
 
 2. Добавить секрет: `bao kv put secret/<ns>/<name> key=value`, добавить ExternalSecret в чарт компонента, а новый namespace — в `conditions`.
 3. Ротация значения:
@@ -118,7 +122,7 @@ OpenBao работает в режиме standalone, хранилище raft н�
    kubectl -n <ns> annotate externalsecret <name> force-sync=$(date +%s) --overwrite
    ```
 
-   Для `zot-htpasswd` ещё `kubectl -n zot delete pod zot-0`: Zot не перечитывает htpasswd. Для потребителей в `argocd` и `backstage` перезапустить под, если он читает значение при старте.
+   Для `zot-htpasswd` ещё `kubectl -n zot delete pod zot-0`: Zot не перечитывает htpasswd. Для потребителей в `argocd` и `backstage` перезапустить под, если он читает значение при старте. Для ротации `POSTGRES_PASSWORD` в `backstage/backstage` сначала нужен `ALTER USER` в `postgres-0` (Postgres хранит пароль в своём PVC), и только потом `kv patch`, force-sync и перезапуск `backstage`. Для `monitoring/grafana-admin` достаточно перезапустить под Grafana: в `infra/monitoring/values.yaml` персистентность Grafana не настроена, пароль администратора читается из Secret при старте.
 4. Политики и роли правятся через `bao policy write` и `bao write auth/kubernetes/role/...`. Блок `initialize` выполняется один раз на свежем хранилище и остаётся в git только для восстановления с нуля.
 5. Snapshot:
 
@@ -132,7 +136,7 @@ OpenBao работает в режиме standalone, хранилище raft н�
 ### Восстановление OpenBao с нуля
 
 1. До `root-app` создать namespace `openbao` и применить Secret из сохранённого `openbao-bootstrap.yaml`, убрав `uid`, `resourceVersion` и `creationTimestamp`.
-2. Когда `openbao` Healthy: `bao login`, затем `bao operator raft snapshot restore -force <файл>`, затем снова `bao login` (токены меняются), удалить под `openbao-0`, принудительно синкнуть все ExternalSecret.
+2. Когда `openbao` Healthy: `bao login`, затем `bao operator raft snapshot restore -force <файл>`, затем снова `bao login` (токены меняются), удалить под `openbao-0`, принудительно синкнуть все ExternalSecret. Второй `bao login` использует пароль администратора, действовавший на момент snapshot, поэтому при ротации пароля в OpenBao держать `admin-password` в `openbao-bootstrap` синхронным.
 3. Завершить и пересинкнуть зависшие Application.
 
 Namespace `openbao` не удалять: статический ключ уйдёт вместе с ним, хранилище останется запечатанным навсегда.
@@ -144,7 +148,7 @@ Namespace `openbao` не удалять: статический ключ уйд�
 ## Правила
 
 - Деплой только через Argo CD, прямой `kubectl apply` на кластер не использовать.
-- Исключения из предыдущего правила: Secret `openbao-bootstrap`, `kubectl delete <kind> <name> --cascade=orphan` при разовой миграции с прежнего инструмента секретов и стирание PVC OpenBao, пока KV пуст.
+- Исключения из предыдущего правила: Secret `openbao-bootstrap`, `kubectl delete <kind> <name> --cascade=orphan` при разовой миграции с прежнего инструмента секретов, операционные шаги runbook OpenBao на живых объектах (аннотации force-sync, перезапуски подов, разбор конфликтов владения) и стирание PVC OpenBao, пока KV пуст.
 - Zot перечитывает `config.json` без перезапуска (проверено для `sync` и `retention`): примерно через минуту после синка Argo CD в логе пода появляется новая запись `configuration settings`.
 - Версии чартов обновляет Renovate (по понедельникам до 6:00); чарты Argo CD группируются в один PR.
 

@@ -63,8 +63,12 @@ git clone https://github.com/as-platform/k3s.git && cd k3s
 helm repo add argo https://argoproj.github.io/argo-helm && helm repo update
 helm dependency build infra/argocd
 helm install argocd infra/argocd -n argocd --create-namespace --wait --timeout 10m
+kubectl create namespace openbao
+kubectl apply -f openbao-bootstrap.yaml
 kubectl apply -f bootstrap/root-app.yaml
 ```
+
+`openbao-bootstrap.yaml` is the saved Secret `openbao-bootstrap`, prepared as in "Restoring OpenBao from scratch"; it must exist before `root-app`. Restore the OpenBao snapshot after `openbao` is Healthy, as described in the same subsection.
 
 After that Argo CD picks itself up through `infra/argocd` and deploys everything else. Do not use `helm upgrade` afterwards: all changes go through git.
 
@@ -96,7 +100,7 @@ spec:
 
 The ClusterSecretStore `openbao` serves only the namespaces listed in `spec.conditions` of `infra/external-secrets/templates/cluster-secret-store.yaml` (now: `argocd`, `backstage`, `github-runner`, `monitoring`, `zot`).
 
-OpenBao runs standalone with raft storage on a local-path PVC. The seal is static: a 32-byte key from the Secret `openbao-bootstrap` in the `openbao` namespace, created by hand and never managed by Argo CD. There is no UI and no Ingress, access is HTTP inside the cluster. Self-init (`initialize` blocks in `infra/openbao/values.yaml`) creates the kv-v2 mount `secret/`, the userpass user `admin`, kubernetes auth, and the policy and role `external-secrets` (read-only on `secret/data/*`, bound to the ServiceAccount `external-secrets` in the `external-secrets` namespace).
+OpenBao runs standalone with raft storage on a local-path PVC. The seal is static: a 32-byte key from the Secret `openbao-bootstrap` in the `openbao` namespace, created by hand and never managed by Argo CD. The UI is served at `https://openbao.homelab` through Traefik with a certificate from `homelab-ca`; the host needs the line `192.168.1.50 openbao.homelab` in `/etc/hosts`, like the other `*.homelab` hosts. UI login method is `Username`, user `admin`, the password is the key `admin-password` of the Secret `openbao-bootstrap`. Inside the cluster ESO still uses plain HTTP `http://openbao.openbao.svc:8200`. Self-init (`initialize` blocks in `infra/openbao/values.yaml`) creates the kv-v2 mount `secret/`, the userpass user `admin`, kubernetes auth, and the policy and role `external-secrets` (read-only on `secret/data/*`, bound to the ServiceAccount `external-secrets` in the `external-secrets` namespace).
 
 ### Working with OpenBao
 
@@ -108,7 +112,7 @@ OpenBao runs standalone with raft storage on a local-path PVC. The seal is stati
    bao login -method=userpass username=admin
    ```
 
-   The password is the key `admin-password` of the Secret `openbao-bootstrap`.
+   The password is the key `admin-password` of the Secret `openbao-bootstrap`. The UI at `https://openbao.homelab` is an alternative to the CLI (see "Secrets").
 
 2. Add a secret: `bao kv put secret/<ns>/<name> key=value`, add an ExternalSecret to the component chart, and add the namespace to `conditions` if it is new.
 3. Rotate a value:
@@ -118,7 +122,7 @@ OpenBao runs standalone with raft storage on a local-path PVC. The seal is stati
    kubectl -n <ns> annotate externalsecret <name> force-sync=$(date +%s) --overwrite
    ```
 
-   For `zot-htpasswd` also run `kubectl -n zot delete pod zot-0`: Zot does not reread htpasswd. Restart the consumer pod in `argocd` and `backstage` if it reads the value at start.
+   For `zot-htpasswd` also run `kubectl -n zot delete pod zot-0`: Zot does not reread htpasswd. Restart the consumer pod in `argocd` and `backstage` if it reads the value at start. Rotating `POSTGRES_PASSWORD` of `backstage/backstage` needs `ALTER USER` in `postgres-0` first (Postgres keeps the password in its PVC), and only then `kv patch`, force-sync and a restart of `backstage`. For `monitoring/grafana-admin` a restart of the Grafana pod is enough: `infra/monitoring/values.yaml` configures no Grafana persistence, so the admin password is read from the Secret at start.
 4. Edit policies and roles with `bao policy write` and `bao write auth/kubernetes/role/...`. The `initialize` block runs once on a fresh storage and stays in git only for restoring from scratch.
 5. Snapshot:
 
@@ -132,7 +136,7 @@ OpenBao runs standalone with raft storage on a local-path PVC. The seal is stati
 ### Restoring OpenBao from scratch
 
 1. Before `root-app`, create the `openbao` namespace and apply the Secret from the saved `openbao-bootstrap.yaml` after removing `uid`, `resourceVersion` and `creationTimestamp`.
-2. When `openbao` is Healthy: `bao login`, then `bao operator raft snapshot restore -force <file>`, then `bao login` again (tokens change), delete the pod `openbao-0`, force-sync every ExternalSecret.
+2. When `openbao` is Healthy: `bao login`, then `bao operator raft snapshot restore -force <file>`, then `bao login` again (tokens change), delete the pod `openbao-0`, force-sync every ExternalSecret. The second `bao login` uses the admin password valid at snapshot time, so keep `admin-password` in `openbao-bootstrap` in sync when the password is rotated in OpenBao.
 3. Terminate and resync the stuck Applications.
 
 Never delete the `openbao` namespace: the static key goes with it and the storage can never be opened again.
@@ -144,7 +148,7 @@ If ESO reports an ownership conflict on an existing Secret, run `kubectl -n <ns>
 ## Rules
 
 - Deploy only through Argo CD; do not use a direct `kubectl apply` on the cluster.
-- Exceptions to the previous rule: the `openbao-bootstrap` Secret, `kubectl delete <kind> <name> --cascade=orphan` during the one-time migration from the previous secret tooling, and wiping the OpenBao PVC while the KV is still empty.
+- Exceptions to the previous rule: the `openbao-bootstrap` Secret, `kubectl delete <kind> <name> --cascade=orphan` during the one-time migration from the previous secret tooling, the operational steps of the OpenBao runbook on live objects (force-sync annotations, pod restarts, ownership-conflict handling), and wiping the OpenBao PVC while the KV is still empty.
 - Zot reloads `config.json` without a restart (checked for `sync` and `retention`): about a minute after Argo CD syncs, a new `configuration settings` entry appears in the pod log.
 - Chart versions are updated by Renovate (Mondays before 6:00); the Argo CD charts are grouped into a single PR.
 
