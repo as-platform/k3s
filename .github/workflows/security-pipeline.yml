@@ -1,0 +1,14 @@
+name: security
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    uses: as-platform/security-pipeline/.github/workflows/security-pipeline.yml@main
+    secrets:
+      zot-user: ${{ secrets.ZOT_USER }}
+      zot-password: ${{ secrets.ZOT_PASSWORD }}
